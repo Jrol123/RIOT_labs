@@ -1,0 +1,11 @@
+{
+    "makefile.extensionOutputFolder": "./.vscode",
+    "files.associations": {
+        "gpio.h": "c",
+        "board.h": "c",
+        "cpu.h": "c",
+        "limits.h": "c",
+        "periph_cpu.h": "c",
+        "xtimer.h": "c"
+    }
+}

@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "Make",
+            "command": "make",
+            "args": [],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "компилятор: /opt/gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc"
+        },
+        {
+            "type": "shell",
+            "label": "Flash",
+            "command": "stlink",
+            "args": ["-P", 
+                     "c:/Projects/MCU/year2/RIOT/projects/blinker/bin/stm32f334c8-disco/blinker.bin",
+                     "0x08000000"],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "компилятор: /opt/gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc"
+        },
+        {
+            "label": "Launch OpenOCD",
+            "command": "openocd",
+            "args": [
+                "-f",
+                "interface/stlink.cfg",
+                "-f",
+                "${input:openocd.config}",
+                "-c",
+                "\"bindto 0.0.0.0\"",
+            ],
+            "type": "shell",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+    ],
+    "inputs": [
+        {
+            "id": "openocd.config",
+            "type": "pickString",
+            "description": "Select the configuration file for OpenOCD",
+            "options": [
+                "board/stm32f334discovery.cfg"
+            ],
+            "default": "board/stm32f334discovery.cfg"
+        }
+    ]
+}
