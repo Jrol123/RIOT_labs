@@ -5,19 +5,20 @@
 
 #define LONG_PRESS 5
 
-// Пользовательская структура
+// ENUM режимов
 typedef enum led_mode
 {
-    FIRST_RUN = 0,
-    NORMAL_RUN,
-    OFF_RUN
+    CIRCLE = 0,
+    LANE
 } led_mode_t;
 
-struct tm cur_time;
-struct tm next_time;
+struct tm cur_time; // Текущее время
+struct tm next_time; // Время конца таймера смены режимы
 
+// Список светодиодов
 gpio_t LED_array[4] = {LED3_PIN, LED4_PIN, LED5_PIN, LED6_PIN};
 
+// Переход против часовой стрелки
 void change_blinkers(void *arg)
 {
     (void)arg;
@@ -36,6 +37,7 @@ void alarm_func(void *arg)
     puts("ALARM!");
 }
 
+// Смена режимов
 void change_mode(void *arg)
 {
     (void)arg;
