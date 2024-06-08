@@ -5,9 +5,22 @@
 
 #define long_press 5
 
-// uint32_t debounce_timestamp = 0;
 struct tm cur_time;
 struct tm next_time;
+
+gpio_t LED_array[4] = {LED3_PIN, LED4_PIN, LED5_PIN, LED6_PIN};
+
+void change_blinkers(void *arg)
+{
+    (void)arg;
+    uint32_t len = sizeof(LED_array) / sizeof(LED_array[0]);
+    gpio_t temp_LED = LED_array[0];
+    for (uint32_t i = 0; i < len - 1; i++)
+    {
+        LED_array[i] = LED_array[i + 1];
+    }
+    LED_array[len - 1] = temp_LED;
+}
 
 void alarm_func(void *arg)
 {
@@ -35,8 +48,9 @@ void change_mode(void *arg)
         rtc_get_time(&cur_time);
         if (cur_time.tm_min <= next_time.tm_min && cur_time.tm_sec < next_time.tm_sec)
         {
-            puts("b");
             rtc_clear_alarm();
+            puts("b");
+            change_blinkers(NULL);
         }
     }
 }
