@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "../../core/include",
+                "../../core/lib/include",
+                "../../drivers/include",
+                "../../sys/include",
+                "../../boards/stm32f334c8-disco/include",
+                "../../build/stm32/cmsis/f3/Include",
+                "../../cpu/cortexm_common/include",
+                "../../cpu/stm32/include",
+                "../../cpu/stm32/include/clk"
+            ],
+            "defines": [],
+            "compilerPath": "/opt/gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-arm",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}

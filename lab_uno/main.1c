@@ -1,0 +1,303 @@
+#include <inttypes.h>
+// #include <stdio.h> // работа с консолью
+ 
+#include <periph/gpio.h>
+#include <msg.h>
+#include <periph/pwm.h>
+#include <thread.h>
+#include <xtimer.h>
+#include <board.h>
+
+#define RCV_QUEUE_SIZE  (2)
+
+signed short shift = 4;
+uint64_t start_time;
+
+// Стэки памяти
+static char rcv_stack_pin_1[THREAD_STACKSIZE_DEFAULT / 4];
+static char rcv_stack_pin_2[THREAD_STACKSIZE_DEFAULT / 4];
+static char rcv_stack_pin_3[THREAD_STACKSIZE_DEFAULT / 4];
+static char rcv_stack_pin_4[THREAD_STACKSIZE_DEFAULT / 4];
+// Очереди входящих сообщений
+static msg_t rcv_queue_pin_1[RCV_QUEUE_SIZE];
+static msg_t rcv_queue_pin_2[RCV_QUEUE_SIZE];
+static msg_t rcv_queue_pin_3[RCV_QUEUE_SIZE];
+static msg_t rcv_queue_pin_4[RCV_QUEUE_SIZE];
+
+
+static signed int get_time(signed short mode){
+    switch (mode){
+        case 4: return 1000000;
+        case 5: return 500000;
+        case 6: return 300000;
+    }
+    return 0;
+}
+
+// Инициализация GPIO для светодиодов после использования PWM
+void init_gpio_after_pwm(gpio_t pin) {
+    gpio_init(pin, GPIO_OUT);
+}
+
+// Функции потоков, с асинхронным обменом сообщениями
+static void* rcv_pin_1(void *arg){
+
+    msg_t msg;
+    (void)arg;
+    
+    // Инициализируем очередь
+    msg_init_queue(rcv_queue_pin_1, RCV_QUEUE_SIZE);
+    // Входим в вечный цикл обработки сообщений
+    while (1) {
+        // Блокируемся до получения сообщения
+        msg_receive(&msg);
+        // Выполняем обработку полученного сообщения
+        if(msg.content.value == 1) {
+
+            gpio_set(LED3_PIN);
+            xtimer_usleep(1000000);
+            gpio_clear(LED3_PIN);
+            xtimer_usleep(1000000);
+
+        } else if(msg.content.value == 2) {
+
+            for(char i = 0; i < 2; ++i){
+                gpio_set(LED3_PIN);
+                xtimer_usleep(500000);
+                gpio_clear(LED3_PIN);
+                xtimer_usleep(500000);
+            }
+        }
+        else {
+            int time = get_time(msg.content.value);
+            gpio_set(LED3_PIN);
+            xtimer_usleep(time);
+            gpio_clear(LED3_PIN);
+            xtimer_usleep(3 * time);
+        }
+    }
+    return NULL;
+}
+
+static void* rcv_pin_2(void *arg){
+
+    msg_t msg;
+    (void)arg;
+    
+    // Инициализируем очередь
+    msg_init_queue(rcv_queue_pin_2, RCV_QUEUE_SIZE);
+    // Входим в вечный цикл обработки сообщений
+    while (1) {
+        // Блокируемся до получения сообщения
+        msg_receive(&msg);
+        // Выполняем обработку полученного сообщения
+        if(msg.content.value == 2) {
+
+            gpio_set(LED6_PIN);
+            xtimer_usleep(1000000);
+            gpio_clear(LED6_PIN);
+            xtimer_usleep(1000000);
+
+        } else if(msg.content.value == 1) {
+
+            for(char i = 0; i < 2; ++i){
+                gpio_set(LED6_PIN);
+                xtimer_usleep(500000);
+                gpio_clear(LED6_PIN);
+                xtimer_usleep(500000);
+            }
+        }
+        else {
+            int time = get_time(msg.content.value);
+            xtimer_usleep(time);
+            gpio_set(LED5_PIN);
+            xtimer_usleep(time);
+            gpio_clear(LED5_PIN);
+            xtimer_usleep(2 * time);
+        }
+    }
+    return NULL;
+}
+
+static void* rcv_pin_3(void *arg){
+
+    msg_t msg;
+    (void)arg;
+    
+    // Инициализируем очередь
+    msg_init_queue(rcv_queue_pin_3, RCV_QUEUE_SIZE);
+    // Входим в вечный цикл обработки сообщений
+    while (1) {
+        // Блокируемся до получения сообщения
+        msg_receive(&msg);
+        // Выполняем обработку полученного сообщения
+        if(msg.content.value == 1) {
+            
+            pwm_init(PWM_DEV(1), PWM_LEFT, 1000, 256);
+
+            for (char i = 0; i < 255; i++) {
+
+                pwm_set(PWM_DEV(1), 0, i);
+                xtimer_usleep(3906);
+            }
+
+            for (char i = 255; i > 0; i--) {
+
+                pwm_set(PWM_DEV(1), 0, i);
+                xtimer_usleep(3906);
+            }
+            pwm_set(PWM_DEV(1), 0, 0);
+            init_gpio_after_pwm(LED4_PIN);
+
+        } else if(msg.content.value == 2) {
+
+            for(char j = 0; j < 2; ++j){
+
+                pwm_init(PWM_DEV(2), PWM_LEFT, 1000, 256);
+
+                for (char i = 0; i < 255; i++) {
+
+                    pwm_set(PWM_DEV(2), 0, i);
+                    xtimer_usleep(1953);
+                }
+
+                for (char i = 255; i > 0; i--) {
+
+                    pwm_set(PWM_DEV(2), 0, i);
+                    xtimer_usleep(1953);
+                }
+            }
+            pwm_set(PWM_DEV(2), 0, 0);
+            init_gpio_after_pwm(LED5_PIN);
+        }
+        else {
+            int time = get_time(msg.content.value);
+            xtimer_usleep(2 * time);
+            gpio_set(LED6_PIN);
+            xtimer_usleep(time);
+            gpio_clear(LED6_PIN);
+            xtimer_usleep(time);
+        }
+    }
+    return NULL;
+}
+
+static void* rcv_pin_4(void *arg){
+
+    msg_t msg;
+    (void)arg;
+    
+    // Инициализируем очередь
+    msg_init_queue(rcv_queue_pin_4, RCV_QUEUE_SIZE);
+    // Входим в вечный цикл обработки сообщений
+    while (1) {
+        // Блокируемся до получения сообщения
+        msg_receive(&msg);
+        // Выполняем обработку полученного сообщения
+        if(msg.content.value == 2) {
+            
+            pwm_init(PWM_DEV(1), PWM_LEFT, 1000, 256);
+
+            for (char i = 0; i < 255; i++) {
+
+                pwm_set(PWM_DEV(1), 0, i);
+                xtimer_usleep(3906);
+            }
+
+            for (char i = 255; i > 0; i--) {
+
+                pwm_set(PWM_DEV(1), 0, i);
+                xtimer_usleep(3906);
+            }
+            pwm_set(PWM_DEV(1), 0, 0);
+            init_gpio_after_pwm(LED4_PIN);
+
+        } else if(msg.content.value == 1) {
+
+            for(char j = 0; j < 2; ++j){
+
+                pwm_init(PWM_DEV(2), PWM_LEFT, 1000, 256);
+
+                for (char i = 0; i < 255; i++) {
+
+                    pwm_set(PWM_DEV(2), 0, i);
+                    xtimer_usleep(1953);
+                }
+
+                for (char i = 255; i > 0; i--) {
+
+                    pwm_set(PWM_DEV(2), 0, i);
+                    xtimer_usleep(1953);
+                }
+            }
+            pwm_set(PWM_DEV(2), 0, 0);
+            init_gpio_after_pwm(LED5_PIN);
+
+        } else {
+            int time = get_time(msg.content.value);
+            xtimer_usleep(3 * time);
+            gpio_set(LED4_PIN);
+            xtimer_usleep(time);
+            gpio_clear(LED4_PIN);
+        }
+    }
+    return NULL;
+}
+
+// Обработка кнопки
+void btn_push_func(void* arg){
+    (void)arg;
+    start_time = xtimer_now_usec();
+}
+
+void btn_pull_func(void* arg){
+    (void) arg;
+
+    uint64_t end_time = xtimer_now_usec();
+
+    if((end_time - start_time) < 1000000){
+        shift++;
+        if(shift == 7) shift = 4;
+        if(shift == 3) shift = 1;
+    } else {
+        if(shift > 3) shift = 1;
+        else shift = 4; 
+    }
+}
+
+int main(void){
+
+    msg_t msg;
+    kernel_pid_t rcv_pid_pin_1, rcv_pid_pin_2, rcv_pid_pin_3, rcv_pid_pin_4;
+
+    gpio_init_int(BTN0_PIN, GPIO_IN, GPIO_RISING, btn_push_func, NULL);
+    gpio_init_int(BTN0_PIN, GPIO_IN, GPIO_FALLING, btn_pull_func, NULL);
+    
+    // Создадим потоки, которыми будем управлять из основного
+    rcv_pid_pin_1 = thread_create(rcv_stack_pin_1, sizeof(rcv_stack_pin_1),
+                            THREAD_PRIORITY_MAIN - 1, 0, rcv_pin_1, NULL, "rcv_pin_1");
+    rcv_pid_pin_2 = thread_create(rcv_stack_pin_2, sizeof(rcv_stack_pin_2),
+                            THREAD_PRIORITY_MAIN - 1, 0, rcv_pin_2, NULL, "rcv_pin_2");
+    rcv_pid_pin_3 = thread_create(rcv_stack_pin_3, sizeof(rcv_stack_pin_3),
+                            THREAD_PRIORITY_MAIN - 1, 0, rcv_pin_3, NULL, "rcv_pin_3");
+    rcv_pid_pin_4 = thread_create(rcv_stack_pin_4, sizeof(rcv_stack_pin_4),
+                            THREAD_PRIORITY_MAIN - 1, 0, rcv_pin_4, NULL, "rcv_pin_4");
+                  
+    // Цикл в основном потоке - отправляем сообщения потокам
+    while (1) {
+        // Делаем некоторые вычисления
+        msg.content.value = shift;
+
+        msg_try_send(&msg, rcv_pid_pin_1);
+        msg_try_send(&msg, rcv_pid_pin_2);
+        msg_try_send(&msg, rcv_pid_pin_3);
+        msg_try_send(&msg, rcv_pid_pin_4);
+
+        if(msg.content.value < 3){
+            xtimer_sleep(2);
+        } else {
+            xtimer_usleep(4 * get_time(msg.content.value));
+        }
+    }
+    return -1;
+}
