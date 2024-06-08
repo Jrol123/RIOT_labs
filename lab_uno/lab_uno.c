@@ -3,7 +3,15 @@
 #include <xtimer.h>
 #include <board.h>
 
-#define long_press 5
+#define LONG_PRESS 5
+
+// Пользовательская структура
+typedef enum led_mode
+{
+    FIRST_RUN = 0,
+    NORMAL_RUN,
+    OFF_RUN
+} led_mode_t;
 
 struct tm cur_time;
 struct tm next_time;
@@ -39,7 +47,7 @@ void change_mode(void *arg)
         // debounce_timestamp = xtimer_usec_from_ticks(xtimer_now());
         puts("a");
         rtc_get_time(&next_time);
-        next_time.tm_sec += long_press;
+        next_time.tm_sec += LONG_PRESS;
 
         rtc_set_alarm(&next_time, alarm_func, NULL);
     }
