@@ -1,27 +1,44 @@
 #include <periph/gpio.h>
+#include <periph/rtc.h>
 #include <xtimer.h>
 #include <board.h>
 
-void stop(void* pin2){
-    puts("func");
-    // (void)pin2;
-    gpio_t btn_pin = BTN0_PIN;
-    gpio_t* cur_LED = (gpio_t*) pin2;
+#define sec (1000000) // 1000 milisec
 
-    gpio_clear(*cur_LED);
+// uint32_t debounce_timestamp = 0;
+struct tm cur_time;
+struct tm next_time;
 
-    while (gpio_read(btn_pin))
-    {
-        // xtimer_sleep(1); //! FAILED ASSERTION
-        puts("stop");
+
+void alarm_func(void* arg){
+    (void)arg;
+    puts("ALARM!");
+}
+
+void change_mode(void* arg){
+    (void)arg;
+
+    if (gpio_read(BTN0_PIN) > 0){
+        // debounce_timestamp = xtimer_usec_from_ticks(xtimer_now());
+        puts("a");
+        rtc_get_time(&next_time);
+        next_time.tm_sec += 5;
+
+        rtc_set_alarm(&next_time, alarm_func, NULL);
     }
-    puts("go");
+    else{
+        rtc_get_time(&cur_time);
+        if (cur_time.tm_min <= next_time.tm_min  && cur_time.tm_sec < next_time.tm_sec){
+            puts("b");
+            rtc_clear_alarm();
+        }
+    }
 }
 
 int main (void){
     gpio_t cur_LED = LED3_PIN;
     gpio_t btn_pin = BTN0_PIN;
-    gpio_init_int(btn_pin, GPIO_IN, GPIO_RISING, stop,  &cur_LED);
+    gpio_init_int(btn_pin, GPIO_IN, GPIO_BOTH, change_mode,  NULL);
     while(true){
         // if (gpio_read(btn_pin)){
         //     gpio_clear(cur_LED);
