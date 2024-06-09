@@ -5,6 +5,16 @@
 
 #define LONG_PRESS 5
 
+#define RCV_QUEUE_SIZE  (2)
+
+signed short mode = 0;
+
+// Стэк памяти
+static char rcv_stack[THREAD_STACKSIZE_DEFAULT / 4];
+//Очередь входящих сообщений
+static msg_t rcv_queue[RCV_QUEUE_SIZE];
+
+
 // ENUM режимов
 typedef enum led_mode
 {
@@ -81,4 +91,8 @@ int main(void)
         gpio_clear(cur_LED);
         xtimer_sleep(2);
     }
+    msg_t msg;
+    kernel_pid_t rcv_pid;
+
+    
 }
