@@ -48,9 +48,10 @@ void change_blinkers(void *arg)
     LED_array[len - 1] = temp_LED;
 }
 
-void alarm_func(void *arg)
+void change_mode(void *arg)
 {
     (void)arg;
+    puts("long_press");
     puts("ALARM!");
     if (mode == CIRCLE)
     {
@@ -65,7 +66,6 @@ void alarm_func(void *arg)
 void change_submode(void *arg)
 {
     (void)arg;
-    puts("long_press");
     switch (sub_mode_2)
     {
         case 10:
@@ -93,7 +93,7 @@ void change_mode(void *arg)
         rtc_get_time(&next_time);
         next_time.tm_sec += LONG_PRESS;
 
-        rtc_set_alarm(&next_time, alarm_func, NULL);
+        rtc_set_alarm(&next_time, change_mode, NULL);
     }
     else
     {
