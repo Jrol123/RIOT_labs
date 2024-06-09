@@ -65,7 +65,7 @@ void alarm_func(void *arg)
 void change_submode(void *arg)
 {
     (void)arg;
-    puts("long_press")
+    puts("long_press");
     switch (sub_mode_2)
     {
         case 10:
