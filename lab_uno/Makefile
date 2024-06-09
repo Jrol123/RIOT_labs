@@ -8,6 +8,7 @@ BOARD ?= stm32f334c8-disco
 USEMODULE += xtimer
 USEMODULE += periph_gpio_irq
 USEMODULE += periph_rtc
+# USEMODULE += periph_pwm
 
 # This has to be the absolute path to the RIOT base directory:
 RIOTBASE ?= $(CURDIR)/../..
