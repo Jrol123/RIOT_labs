@@ -18,7 +18,7 @@ signed short mode = CIRCLE;
 
 signed short sub_mode_2 = 10;
 
-// Получение времени задержки для LANE
+// Получение времени задержки
 static signed int get_time(signed short dsec)
 {
     return dsec * 100000;
