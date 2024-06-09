@@ -52,7 +52,6 @@ void change_mode(void *arg)
 {
     (void)arg;
     puts("long_press");
-    puts("ALARM!");
     if (mode == CIRCLE)
     {
         mode = LANE;
@@ -81,7 +80,7 @@ void change_submode(void *arg)
 }
 
 // Смена режимов
-void change_mode(void *arg)
+void btn_press(void *arg)
 {
     (void)arg;
 
@@ -140,7 +139,7 @@ void *rcv(void *arg)
 
 int main(void)
 {
-    gpio_init_int(BTN0_PIN, GPIO_IN, GPIO_BOTH, change_mode, NULL);
+    gpio_init_int(BTN0_PIN, GPIO_IN, GPIO_BOTH, btn_press, NULL);
     msg_t msg;
     kernel_pid_t rcv_pid = thread_create(rcv_stack, sizeof(rcv_stack), THREAD_PRIORITY_MAIN - 1, 0, rcv, NULL, "rcv");
 
