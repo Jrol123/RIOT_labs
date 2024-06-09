@@ -5,15 +5,7 @@
 
 #define LONG_PRESS 5
 
-#define RCV_QUEUE_SIZE  (2)
-
-signed short mode = 0;
-
-// Стэк памяти
-static char rcv_stack[THREAD_STACKSIZE_DEFAULT / 4];
-//Очередь входящих сообщений
-static msg_t rcv_queue[RCV_QUEUE_SIZE];
-
+#define RCV_QUEUE_SIZE (2)
 
 // ENUM режимов
 typedef enum led_mode
@@ -22,7 +14,22 @@ typedef enum led_mode
     LANE
 } led_mode_t;
 
-struct tm cur_time; // Текущее время
+signed short mode = CIRCLE;
+
+signed short sub_mode_2 = 10;
+
+// Получение времени задержки для LANE
+static signed int get_time(signed short dsec)
+{
+    return dsec * 100000;
+}
+
+// Стэк памяти
+static char rcv_stack[THREAD_STACKSIZE_DEFAULT / 4];
+// Очередь входящих сообщений
+static msg_t rcv_queue[RCV_QUEUE_SIZE];
+
+struct tm cur_time;  // Текущее время
 struct tm next_time; // Время конца таймера смены режимы
 
 // Список светодиодов
@@ -45,6 +52,31 @@ void alarm_func(void *arg)
 {
     (void)arg;
     puts("ALARM!");
+    if (mode == CIRCLE)
+    {
+        mode = LANE;
+    }
+    else
+    {
+        mode = CIRCLE;
+    }
+}
+
+void change_submode(void *arg)
+{
+    (void)arg;
+    switch (sub_mode_2)
+    {
+        case 10:
+            sub_mode_2 = 5;
+            break;
+        case 5:
+            sub_mode_2 = 3;
+            break;
+        case 3:
+            sub_mode_2 = 10;
+            break;
+    }
 }
 
 // Смена режимов
@@ -66,33 +98,59 @@ void change_mode(void *arg)
     else
     {
         rtc_get_time(&cur_time);
+        // Короткое нажатие
         if (cur_time.tm_min <= next_time.tm_min && cur_time.tm_sec < next_time.tm_sec)
         {
             rtc_clear_alarm();
             puts("b");
             change_blinkers(NULL);
+            change_submode(NULL);
         }
     }
 }
 
-int main(void)
+void *rcv(void *arg)
 {
-    gpio_t cur_LED = LED3_PIN;
-    gpio_t btn_pin = BTN0_PIN;
-    gpio_init_int(btn_pin, GPIO_IN, GPIO_BOTH, change_mode, NULL);
+    (void)arg;
+    msg_t msg;
+
+    msg_init_queue(rcv_queue, RCV_QUEUE_SIZE);
     while (true)
     {
-        // if (gpio_read(btn_pin)){
-        //     gpio_clear(cur_LED);
-        //     puts("button pressed");
-        // }
-        gpio_set(cur_LED);
-        xtimer_sleep(2);
-        gpio_clear(cur_LED);
-        xtimer_sleep(2);
-    }
-    msg_t msg;
-    kernel_pid_t rcv_pid;
+        msg_receive(&msg);
 
-    
+        if (msg.content.value == CIRCLE)
+        {
+            puts("circle");
+        }
+        else if (msg.content.value == LANE)
+        {
+            puts("lane");
+        }
+    }
+
+    return NULL;
+}
+
+int main(void)
+{
+    gpio_init_int(BTN0_PIN, GPIO_IN, GPIO_BOTH, change_mode, NULL);
+    msg_t msg;
+    kernel_pid_t rcv_pid = thread_create(rcv_stack, sizeof(rcv_stack), THREAD_PRIORITY_MAIN - 1, 0, rcv, NULL, "rcv");
+
+    while (true)
+    {
+        msg.content.value = mode;
+
+        msg_try_send(&msg, rcv_pid);
+
+        if(mode == CIRCLE)
+        {
+            xtimer_usleep(get_time(5));
+        }
+        else
+        {
+            xtimer_usleep(get_time(sub_mode_2));
+        }
+    }
 }
