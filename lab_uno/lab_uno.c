@@ -65,6 +65,7 @@ void alarm_func(void *arg)
 void change_submode(void *arg)
 {
     (void)arg;
+    puts("long_press")
     switch (sub_mode_2)
     {
         case 10:
@@ -89,7 +90,6 @@ void change_mode(void *arg)
     if (gpio_read(BTN0_PIN) > 0)
     {
         // debounce_timestamp = xtimer_usec_from_ticks(xtimer_now());
-        puts("a");
         rtc_get_time(&next_time);
         next_time.tm_sec += LONG_PRESS;
 
@@ -102,9 +102,15 @@ void change_mode(void *arg)
         if (cur_time.tm_min <= next_time.tm_min && cur_time.tm_sec < next_time.tm_sec)
         {
             rtc_clear_alarm();
-            puts("b");
-            change_blinkers(NULL);
-            change_submode(NULL);
+            puts("short_press");
+            if(mode == CIRCLE)
+            {
+                change_blinkers(NULL);
+            }
+            else
+            {
+                change_submode(NULL);
+            }
         }
     }
 }
