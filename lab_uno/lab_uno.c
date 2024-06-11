@@ -108,12 +108,10 @@ void btn_press(void *arg)
             {
                 gpio_clear(LED_array[0]);
                 change_blinkers(NULL);
-                puts("");
             }
             else
             {
-                puts("");
-                // change_submode(NULL);
+                change_submode(NULL);
             }
         }
     }
@@ -121,6 +119,8 @@ void btn_press(void *arg)
 
 // TODO: Разобраться, как передавать сразу несколько аргументов в функцию по таймеру
 uint32_t delay = 1;
+
+struct tm led_next_time;
 
 void LED_off(void *pin)
 {
@@ -130,13 +130,12 @@ void LED_off(void *pin)
 
 void LED_on(void *pin)
 {
-    puts("alarm off");
     gpio_set(*(gpio_t *)pin);
 
-    rtc_get_time(&next_time);
-    next_time.tm_sec += delay;
+    rtc_get_time(&led_next_time);
+    led_next_time.tm_sec += delay;
 
-    rtc_set_alarm(&next_time, LED_off, &pin);
+    rtc_set_alarm(&led_next_time, LED_off, &pin);
 }
 
 struct tm LED_cur_time;
@@ -154,8 +153,6 @@ mode_1(void *arg)
     {
         msg_receive(&msg);
 
-        puts("circle");
-
         for (uint32_t i = 0; i < lenLED; i++)
         {
             if (i == 0 || i == 1)
@@ -163,14 +160,14 @@ mode_1(void *arg)
                 rtc_get_time(&LED_cur_time);
                 if (!(LED_cur_time.tm_min <= LED_next_time.tm_min && LED_cur_time.tm_sec < LED_next_time.tm_sec))
                 {
-                    puts("alarm on");
+                    puts("circle");
                     LED_on(&LED_array[i]);
                     rtc_get_time(&LED_next_time);
-                    LED_next_time.tm_sec += delay * 2;
+                    LED_next_time.tm_sec += delay * 10; //? Заменить на 2
 
-                    rtc_set_alarm(&LED_next_time, LED_on, &LED_array[i]);
+                    // rtc_set_alarm(&LED_next_time, LED_on, &LED_array[i]);
                 }
-                xtimer_sleep(delay * 10);
+                // xtimer_sleep(delay * 10);
             }
         }
     }
