@@ -37,16 +37,17 @@ struct tm next_time; // Время конца таймера смены режи
 
 // Список светодиодов
 gpio_t LED_array[4] = {LED6_PIN, LED3_PIN, LED4_PIN, LED5_PIN};
-gpio_t LED_PWM_array[4] = {LED4_PIN, LED5_PIN};
-uint32_t pwm_freq[2] = {0, 0};
+gpio_t LED_PWM_array[2] = {LED4_PIN, LED5_PIN};
+uint32_t LED_PWM_switch[2] = {1, 2};
+uint32_t pwm_freq[2] = {2, 2};
 bool pwm_isUp[2] = {true, true};
 uint32_t lenLED = 4;
 bool LED_is_led[4] = {false, false, false, false};
 
-uint32_t max_freq = 250;
+uint32_t max_freq = 256;
 uint32_t min_freq = 0;
 
-//  Переход против часовой стрелки
+//  Зеркальное отражение порядка светодиодов
 void change_blinkers(void *arg)
 {
     (void)arg;
@@ -63,9 +64,14 @@ void change_blinkers(void *arg)
     LED_array[2] = LED_array[3];
     LED_array[3] = temp_LED;
 
+    uint32_t temp = LED_PWM_switch[0];
+    LED_PWM_switch[0] = LED_PWM_switch[1];
+    LED_PWM_switch[1] = temp;
+
     LED_is_led[lenLED - 1] = false;
 }
 
+// Инициализация светодиодов для работы в режиме PWM
 void init_PWM_LED(void *arg)
 {
     (void)arg;
@@ -75,6 +81,7 @@ void init_PWM_LED(void *arg)
     }
 }
 
+// Инициализация светодиодов для работы в режиме GPIO
 void init_GPIO_LED(void *arg)
 {
     (void)arg;
@@ -92,7 +99,6 @@ void change_mode(void *arg)
     {
         init_GPIO_LED(NULL);
         mode = LANE;
-
     }
     else
     {
@@ -127,7 +133,6 @@ void btn_press(void *arg)
     // В случае недодержания активируется под-функция режима (else)
     if (gpio_read(BTN0_PIN) > 0)
     {
-        // debounce_timestamp = xtimer_usec_from_ticks(xtimer_now());
         rtc_get_time(&next_time);
         next_time.tm_sec += LONG_PRESS;
 
@@ -219,7 +224,7 @@ mode_1(void *arg)
                 {
                     pwm_freq[i - 2] -= 1;
                 }
-                pwm_set(PWM_DEV(i - 1), 0, pwm_freq[i - 2]);
+                pwm_set(PWM_DEV(LED_PWM_switch[i - 2]), 0, pwm_freq[i - 2]);
                 break;
             case (3):
                 if (pwm_freq[i - 2] == max_freq || pwm_freq[i - 2] == min_freq)
@@ -235,8 +240,8 @@ mode_1(void *arg)
                     pwm_freq[i - 2] -= 2;
                 }
                 // printf("Частота: %ld", pwm_freq[i - 2]);
-                pwm_set(PWM_DEV(i - 1), 0, pwm_freq[i - 2]);
-                xtimer_usleep(1953);
+                pwm_set(PWM_DEV(LED_PWM_switch[i - 2]), 0, pwm_freq[i - 2]);
+                xtimer_usleep(3840 * 2);
                 break;
             }
         }
@@ -257,12 +262,13 @@ void *mode_2(void *arg)
         msg_receive(&msg);
 
         puts("lane");
+        gpio_t LED_lane_array[4] = {LED3_PIN, LED5_PIN, LED6_PIN, LED4_PIN};
 
         for (uint32_t i = 0; i < lenLED; i++)
         {
-            gpio_set(LED_array[i]);
+            gpio_set(LED_lane_array[i]);
             xtimer_usleep(get_time(sub_mode));
-            gpio_clear(LED_array[i]);
+            gpio_clear(LED_lane_array[i]);
             xtimer_usleep(get_time(sub_mode));
         }
     }
