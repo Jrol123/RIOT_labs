@@ -1,5 +1,6 @@
 #include <periph/gpio.h>
 #include <periph/rtc.h>
+#include <periph/pwm.h>
 #include <xtimer.h>
 #include <board.h>
 
@@ -35,19 +36,43 @@ struct tm cur_time;  // Текущее время
 struct tm next_time; // Время конца таймера смены режимы
 
 // Список светодиодов
-gpio_t LED_array[4] = {LED3_PIN, LED4_PIN, LED5_PIN, LED6_PIN};
+gpio_t LED_array[4] = {LED6_PIN, LED4_PIN, LED3_PIN, LED5_PIN};
+gpio_t LED_PWM_array[4] = {LED3_PIN, LED5_PIN};
+uint32_t pwm_freq[2] = {0, 0};
 uint32_t lenLED = 4;
+bool LED_is_led[4] = {false, false, false, false};
 
-// Переход против часовой стрелки
+// TODO: Сделать зеркалтное отражение
+//  Переход против часовой стрелки
 void change_blinkers(void *arg)
 {
     (void)arg;
     gpio_t temp_LED = LED_array[0];
     for (uint32_t i = 0; i < lenLED - 1; i++)
     {
+        LED_is_led[i] = false;
         LED_array[i] = LED_array[i + 1];
     }
     LED_array[lenLED - 1] = temp_LED;
+    LED_is_led[lenLED - 1] = false;
+}
+
+void init_PWM_LED(void *arg)
+{
+    (void)arg;
+    for (uint32_t i = 0; i < 2; i++)
+    {
+        pwm_init(PWM_DEV(i + 1), LED_PWM_array[i], 1000, 249);
+    }
+}
+
+void init_GPIO_LED(void *arg)
+{
+    (void)arg;
+    for (uint32_t i = 0; i < 2; i++)
+    {
+        gpio_init(LED_PWM_array[i], GPIO_OUT);
+    }
 }
 
 void change_mode(void *arg)
@@ -57,9 +82,11 @@ void change_mode(void *arg)
     if (mode == CIRCLE)
     {
         mode = LANE;
+        init_PWM_LED(NULL);
     }
     else
     {
+        init_GPIO_LED(NULL);
         mode = CIRCLE;
     }
 }
@@ -117,29 +144,24 @@ void btn_press(void *arg)
     }
 }
 
-// TODO: Разобраться, как передавать сразу несколько аргументов в функцию по таймеру
+void LED_switch_blink(gpio_t pin, uint32_t index_pin)
+{
+    if (LED_is_led[index_pin])
+    {
+        gpio_clear(pin);
+        // printf("Took off pin: %lu", index_pin);
+    }
+    else
+    {
+        gpio_set(pin);
+        // printf("Took on pin: %lu", index_pin);
+    }
+    LED_is_led[index_pin] = !LED_is_led[index_pin];
+}
+
 uint32_t delay = 1;
 
-struct tm led_next_time;
-
-void LED_off(void *pin)
-{
-    puts("clear coast");
-    gpio_clear(*(gpio_t *)pin);
-}
-
-void LED_on(void *pin)
-{
-    gpio_set(*(gpio_t *)pin);
-
-    rtc_get_time(&led_next_time);
-    led_next_time.tm_sec += delay;
-
-    rtc_set_alarm(&led_next_time, LED_off, &pin);
-}
-
-struct tm LED_cur_time;
-struct tm LED_next_time;
+bool is_half = false;
 
 // *CIRCLE
 void *
@@ -152,24 +174,34 @@ mode_1(void *arg)
     while (true)
     {
         msg_receive(&msg);
+        puts("circle");
 
         for (uint32_t i = 0; i < lenLED; i++)
         {
-            if (i == 0 || i == 1)
+            switch (i)
             {
-                rtc_get_time(&LED_cur_time);
-                if (!(LED_cur_time.tm_min <= LED_next_time.tm_min && LED_cur_time.tm_sec < LED_next_time.tm_sec))
+            case (0):
+                if (!is_half)
                 {
-                    puts("circle");
-                    LED_on(&LED_array[i]);
-                    rtc_get_time(&LED_next_time);
-                    LED_next_time.tm_sec += delay * 10; //? Заменить на 2
-
-                    // rtc_set_alarm(&LED_next_time, LED_on, &LED_array[i]);
+                    LED_switch_blink(LED_array[i], i);
                 }
-                // xtimer_sleep(delay * 10);
+                break;
+            case (1):
+                LED_switch_blink(LED_array[i], i);
+                break;
+            // 0 - 249
+            case (2):
+                pwm_freq[i - 2] += 1;
+                pwm_set(PWM_DEV(i - 1), pwm_freq[i - 2], 0);
+                break;
+            case(3):
+                pwm_freq[i - 2] += 2;
+                pwm_set(PWM_DEV(i - 1), pwm_freq[i - 2], 0);
+                break;
             }
         }
+        xtimer_usleep(get_time(5));
+        is_half = !is_half;
     }
 
     return NULL;
@@ -206,6 +238,8 @@ int main(void)
     msg_t msg;
     kernel_pid_t rcv_pid_1 = thread_create(rcv_stack_1, sizeof(rcv_stack_1), THREAD_PRIORITY_MAIN - 1, 0, mode_1, NULL, "mode_1");
     kernel_pid_t rcv_pid_2 = thread_create(rcv_stack_2, sizeof(rcv_stack_2), THREAD_PRIORITY_MAIN - 1, 0, mode_2, NULL, "mode_2");
+
+    init_PWM_LED(NULL);
 
     // TODO: Разобраться, как резко переходить с одного потока на другой. Тогда можно будет переделать систему
     while (true)
