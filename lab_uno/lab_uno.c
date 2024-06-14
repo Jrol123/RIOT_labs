@@ -36,24 +36,33 @@ struct tm cur_time;  // Текущее время
 struct tm next_time; // Время конца таймера смены режимы
 
 // Список светодиодов
-gpio_t LED_array[4] = {LED6_PIN, LED4_PIN, LED3_PIN, LED5_PIN};
-gpio_t LED_PWM_array[4] = {LED3_PIN, LED5_PIN};
+gpio_t LED_array[4] = {LED6_PIN, LED3_PIN, LED4_PIN, LED5_PIN};
+gpio_t LED_PWM_array[4] = {LED4_PIN, LED5_PIN};
 uint32_t pwm_freq[2] = {0, 0};
+bool pwm_isUp[2] = {true, true};
 uint32_t lenLED = 4;
 bool LED_is_led[4] = {false, false, false, false};
 
-// TODO: Сделать зеркалтное отражение
+uint32_t max_freq = 250;
+uint32_t min_freq = 0;
+
 //  Переход против часовой стрелки
 void change_blinkers(void *arg)
 {
     (void)arg;
     gpio_t temp_LED = LED_array[0];
-    for (uint32_t i = 0; i < lenLED - 1; i++)
+    for (uint32_t i = 0; i < lenLED; i++)
     {
         LED_is_led[i] = false;
-        LED_array[i] = LED_array[i + 1];
     }
-    LED_array[lenLED - 1] = temp_LED;
+    temp_LED = LED_array[0];
+    LED_array[0] = LED_array[1];
+    LED_array[1] = temp_LED;
+
+    temp_LED = LED_array[2];
+    LED_array[2] = LED_array[3];
+    LED_array[3] = temp_LED;
+
     LED_is_led[lenLED - 1] = false;
 }
 
@@ -62,7 +71,7 @@ void init_PWM_LED(void *arg)
     (void)arg;
     for (uint32_t i = 0; i < 2; i++)
     {
-        pwm_init(PWM_DEV(i + 1), LED_PWM_array[i], 1000, 249);
+        pwm_init(PWM_DEV(i + 1), PWM_LEFT, 1000, max_freq);
     }
 }
 
@@ -81,12 +90,13 @@ void change_mode(void *arg)
     puts("long_press");
     if (mode == CIRCLE)
     {
+        init_GPIO_LED(NULL);
         mode = LANE;
-        init_PWM_LED(NULL);
+
     }
     else
     {
-        init_GPIO_LED(NULL);
+        init_PWM_LED(NULL);
         mode = CIRCLE;
     }
 }
@@ -163,6 +173,8 @@ uint32_t delay = 1;
 
 bool is_half = false;
 
+uint32_t cur_time_LED;
+
 // *CIRCLE
 void *
 mode_1(void *arg)
@@ -174,34 +186,60 @@ mode_1(void *arg)
     while (true)
     {
         msg_receive(&msg);
-        puts("circle");
 
         for (uint32_t i = 0; i < lenLED; i++)
         {
             switch (i)
             {
             case (0):
-                if (!is_half)
+                if (!is_half && cur_time_LED < xtimer_now_usec())
                 {
                     LED_switch_blink(LED_array[i], i);
                 }
                 break;
             case (1):
-                LED_switch_blink(LED_array[i], i);
+                if (cur_time_LED < xtimer_now_usec())
+                {
+                    LED_switch_blink(LED_array[i], i);
+                    cur_time_LED = xtimer_now_usec() + get_time(5);
+                    puts("circle");
+                    is_half = !is_half;
+                }
                 break;
-            // 0 - 249
             case (2):
-                pwm_freq[i - 2] += 1;
-                pwm_set(PWM_DEV(i - 1), pwm_freq[i - 2], 0);
+                if (pwm_freq[i - 2] == max_freq || pwm_freq[i - 2] == min_freq)
+                {
+                    pwm_isUp[i - 2] = !pwm_isUp[i - 2];
+                }
+                if (pwm_isUp[i - 2])
+                {
+                    pwm_freq[i - 2] += 1;
+                }
+                else
+                {
+                    pwm_freq[i - 2] -= 1;
+                }
+                pwm_set(PWM_DEV(i - 1), 0, pwm_freq[i - 2]);
                 break;
-            case(3):
-                pwm_freq[i - 2] += 2;
-                pwm_set(PWM_DEV(i - 1), pwm_freq[i - 2], 0);
+            case (3):
+                if (pwm_freq[i - 2] == max_freq || pwm_freq[i - 2] == min_freq)
+                {
+                    pwm_isUp[i - 2] = !pwm_isUp[i - 2];
+                }
+                if (pwm_isUp[i - 2])
+                {
+                    pwm_freq[i - 2] += 2;
+                }
+                else
+                {
+                    pwm_freq[i - 2] -= 2;
+                }
+                // printf("Частота: %ld", pwm_freq[i - 2]);
+                pwm_set(PWM_DEV(i - 1), 0, pwm_freq[i - 2]);
+                xtimer_usleep(1953);
                 break;
             }
         }
-        xtimer_usleep(get_time(5));
-        is_half = !is_half;
     }
 
     return NULL;
